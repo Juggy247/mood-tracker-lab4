@@ -5,7 +5,7 @@ import 'mood_score_selector.dart';
 
 /// A form for recording a new mood entry.
 ///
-/// Exercise 1, step 3, and Exercise 2, steps 1-3.
+/// Exercise 1, step 3, and Exercise 2, steps 1-3, plus Exercise 3 validation.
 class MoodEntryForm extends StatefulWidget {
   const MoodEntryForm({super.key, required this.onSubmit});
 
@@ -20,48 +20,60 @@ class _MoodEntryFormState extends State<MoodEntryForm> {
   int? _score;
   final TextEditingController _noteController = TextEditingController();
 
+  /// Shown under the score chips when Save is tapped without a score.
+  String? _scoreError;
+
+  /// Shown under the note field when the note is too long.
+  String? _noteError;
+
   @override
   void dispose() {
     _noteController.dispose();
     super.dispose();
   }
 
-void _save() {
-  final score = _score;
+  void _save() {
+    final score = _score;
+    final rawNote = _noteController.text;
 
-  if (score == null) return;
+    // Validate the raw text, so trailing spaces count towards the limit.
+    final scoreError = score == null ? 'Choose a score from 1 to 10' : null;
+    final noteError = rawNote.length > maxNoteLength
+        ? 'Note must be at most $maxNoteLength characters'
+        : null;
 
-  final note = _noteController.text.trim();
+    if (score == null || noteError != null) {
+      // Show the errors and stop. The note stays in the field.
+      setState(() {
+        _scoreError = scoreError;
+        _noteError = noteError;
+      });
+      return;
+    }
 
-  final entry = MoodEntry(
-    score: score,
-    note: note.isEmpty ? null : note,
-    createdAt: DateTime.now(),
-  );
+    final note = rawNote.trim();
 
-  widget.onSubmit(entry);
+    widget.onSubmit(
+      MoodEntry(
+        score: score,
+        note: note.isEmpty ? null : note,
+        createdAt: DateTime.now(),
+      ),
+    );
 
-  setState(() {
-    _score = null;
-  });
-
-  _noteController.clear();
-}
-  // TODO 1.3: Declare the selected score. It starts with nothing selected:
-  //   int? _score;
-
-  // TODO 2.1: Declare a TextEditingController for the note. Override
-  //   dispose() and call _noteController.dispose() before super.dispose().
-  //   Why does a controller need disposing when an int does not?
-
-  // TODO 2.3: Write a _save() method that:
-  //   1. creates a MoodEntry with the selected score, the trimmed note
-  //      (or null if the trimmed note is empty) and DateTime.now()
-  //   2. passes the entry to widget.onSubmit
-  //   3. clears the form: no score selected and an empty note
+    // Clear the form: no score, no errors, empty note.
+    setState(() {
+      _score = null;
+      _scoreError = null;
+      _noteError = null;
+    });
+    _noteController.clear();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -73,38 +85,47 @@ void _save() {
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 12),
-            // TODO 1.3 (continued): Pass _score instead of null. In
-            //   onChanged, store the tapped score inside setState(() { ... }).
-            //   Then try it without setState. What happens, and why?
             MoodScoreSelector(
               selectedScore: _score,
               onChanged: (score) {
                 setState(() {
                   _score = score;
+                  _scoreError = null; // the user corrected the problem
                 });
               },
             ),
-
+            if (_scoreError != null) ...[
+              const SizedBox(height: 8),
+              // A plain Text wraps onto more lines on narrow screens.
+              Text(
+                _scoreError!,
+                style: TextStyle(color: colorScheme.error),
+              ),
+            ],
             const SizedBox(height: 16),
-
             TextField(
               controller: _noteController,
-              decoration: const InputDecoration(
+              onChanged: (text) {
+                // Clear the error once the note is short enough again.
+                if (_noteError != null && text.length <= maxNoteLength) {
+                  setState(() {
+                    _noteError = null;
+                  });
+                }
+              },
+              decoration: InputDecoration(
                 labelText: 'Note (optional)',
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
+                errorText: _noteError,
+                errorMaxLines: 3,
               ),
             ),
             const SizedBox(height: 16),
+            // Always enabled, so tapping it without a score shows a message.
             FilledButton(
-              onPressed: _score == null ? null : _save,
+              onPressed: _save,
               child: const Text('Save entry'),
             ),
-            // TODO 2.2: Add a TextField for the note that uses your
-            //   controller, labelled 'Note (optional)' (InputDecoration).
-            //
-            // TODO 2.3 (continued): Add a FilledButton labelled 'Save entry'
-            //   that calls _save. While no score is selected, pass
-            //   onPressed: null so that the button is disabled.
           ],
         ),
       ),
