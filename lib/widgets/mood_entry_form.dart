@@ -17,6 +17,36 @@ class MoodEntryForm extends StatefulWidget {
 }
 
 class _MoodEntryFormState extends State<MoodEntryForm> {
+  int? _score;
+  final TextEditingController _noteController = TextEditingController();
+
+  @override
+  void dispose() {
+    _noteController.dispose();
+    super.dispose();
+  }
+
+void _save() {
+  final score = _score;
+
+  if (score == null) return;
+
+  final note = _noteController.text.trim();
+
+  final entry = MoodEntry(
+    score: score,
+    note: note.isEmpty ? null : note,
+    createdAt: DateTime.now(),
+  );
+
+  widget.onSubmit(entry);
+
+  setState(() {
+    _score = null;
+  });
+
+  _noteController.clear();
+}
   // TODO 1.3: Declare the selected score. It starts with nothing selected:
   //   int? _score;
 
@@ -46,7 +76,29 @@ class _MoodEntryFormState extends State<MoodEntryForm> {
             // TODO 1.3 (continued): Pass _score instead of null. In
             //   onChanged, store the tapped score inside setState(() { ... }).
             //   Then try it without setState. What happens, and why?
-            MoodScoreSelector(selectedScore: null, onChanged: (_) {}),
+            MoodScoreSelector(
+              selectedScore: _score,
+              onChanged: (score) {
+                setState(() {
+                  _score = score;
+                });
+              },
+            ),
+
+            const SizedBox(height: 16),
+
+            TextField(
+              controller: _noteController,
+              decoration: const InputDecoration(
+                labelText: 'Note (optional)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: _score == null ? null : _save,
+              child: const Text('Save entry'),
+            ),
             // TODO 2.2: Add a TextField for the note that uses your
             //   controller, labelled 'Note (optional)' (InputDecoration).
             //
